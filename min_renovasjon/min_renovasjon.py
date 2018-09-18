@@ -109,7 +109,7 @@ class MinRenovasjon:
 
         check_for_refresh = False
         if not refresh:
-            check_for_refresh = self._check_for_refresh_of_data(kalender_list)
+            check_for_refresh = self.check_for_refresh_of_data(kalender_list)
 
         if check_for_refresh:
             print("REFRESHING DATA...")
@@ -144,7 +144,7 @@ class MinRenovasjon:
         return kalender_list
 
     @staticmethod
-    def _check_for_refresh_of_data(kalender_list):
+    def check_for_refresh_of_data(kalender_list):
         print("CHECKING IF DATA NEEDS REFRESH")
 
         for entry in kalender_list:
@@ -159,6 +159,9 @@ class MinRenovasjon:
 
 min_renovasjon = MinRenovasjon('Kalli%C3%A5sen', '11700', '1')
 kalender_list = min_renovasjon.get_calendar_list()
+refresh_needed = min_renovasjon.check_for_refresh_of_data(kalender_list)
+
+print(refresh_needed)
 
 for fraksjon_id, fraksjon_navn, fraksjon_ikon, tommedato_forste, tommedato_neste in kalender_list:
     print(fraksjon_id)
