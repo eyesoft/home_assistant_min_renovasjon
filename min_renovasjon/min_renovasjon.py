@@ -1,6 +1,7 @@
 import requests
 import json
-import datetime
+from datetime import date
+from datetime import datetime
 
 CONST_KOMMUNE_NUMMER = "Kommunenr"
 CONST_APP_KEY = "RenovasjonAppKey"
@@ -15,126 +16,153 @@ CONST_DATA_FILENAME = "min_renovasjon.dat"
 CONST_DATA_HEADER_COMMENT = '# Auto-generated file. Do not edit.'
 
 
-def _get_tommekalender(gatenavn, gatekode, husnr):
-    header = {CONST_KOMMUNE_NUMMER: KOMMUNE_NUMMER, CONST_APP_KEY: APP_KEY}
+# noinspection PyShadowingNames
+class MinRenovasjon:
+    def __init__(self, gatenavn, gatekode, husnr):
+        self.gatenavn = gatenavn
+        self.gatekode = gatekode
+        self.husnr = husnr
+        pass
 
-    url = CONST_URL_TOMMEKALENDER
-    url = url.replace('[gatenavn]', gatenavn)
-    url = url.replace('[gatekode]', gatekode)
-    url = url.replace('[husnr]', husnr)
+    def _get_tommekalender_from_web_api(self):
+        header = {CONST_KOMMUNE_NUMMER: KOMMUNE_NUMMER, CONST_APP_KEY: APP_KEY}
 
-    response = requests.get(url, headers=header)
-    if response.status_code == requests.codes.ok:
-        data = response.text
-        return data
-    else:
-        print(response.status_code)
-        return None
+        url = CONST_URL_TOMMEKALENDER
+        url = url.replace('[gatenavn]', self.gatenavn)
+        url = url.replace('[gatekode]', self.gatekode)
+        url = url.replace('[husnr]', self.husnr)
 
+        response = requests.get(url, headers=header)
+        if response.status_code == requests.codes.ok:
+            data = response.text
+            return data
+        else:
+            print(response.status_code)
+            return None
 
-def _get_fraksjoner():
-    header = {CONST_KOMMUNE_NUMMER: KOMMUNE_NUMMER, CONST_APP_KEY: APP_KEY}
-    url = CONST_URL_FRAKSJONER
+    @staticmethod
+    def _get_fraksjoner_from_web_api():
+        header = {CONST_KOMMUNE_NUMMER: KOMMUNE_NUMMER, CONST_APP_KEY: APP_KEY}
+        url = CONST_URL_FRAKSJONER
 
-    response = requests.get(url, headers=header)
-    if response.status_code == requests.codes.ok:
-        data = response.text
-        return data
-    else:
-        print(response.status_code)
-        return None
+        response = requests.get(url, headers=header)
+        if response.status_code == requests.codes.ok:
+            data = response.text
+            return data
+        else:
+            print(response.status_code)
+            return None
 
+    @staticmethod
+    def _read_from_file():
+        try:
+            print("READING CONTENT FROM FILE")
 
-def _read_from_file():
-    try:
-        file = open(CONST_DATA_FILENAME)
+            file = open(CONST_DATA_FILENAME)
 
-        lines = file.readlines()
-        tommekalender = lines[1]
-        fraksjoner = lines[2]
+            lines = file.readlines()
+            tommekalender = lines[1]
+            fraksjoner = lines[2]
+
+            file.close()
+
+            return tuple((tommekalender, fraksjoner))
+
+        except FileNotFoundError:
+            print("FILE NOT FOUND")
+            return None
+
+    @staticmethod
+    def _write_to_file(tommekalender, fraksjoner):
+        print("WRITING CONTENT TO FILE")
+
+        file = open(CONST_DATA_FILENAME, "w")
+
+        file.write("{}\n".format(CONST_DATA_HEADER_COMMENT))
+        file.write("{}\n".format(tommekalender))
+        file.write("{}\n".format(fraksjoner))
 
         file.close()
 
-        print("RETURNING CONTENT FROM FILE")
-        return tuple((tommekalender, fraksjoner))
-
-    except FileNotFoundError:
-        print("FILE NOT FOUND")
-        return None
-
-
-def _write_to_file(tommekalender, fraksjoner):
-    print("WRITING CONTENT TO FILE")
-
-    file = open(CONST_DATA_FILENAME, "w")
-
-    file.write("{}\n".format(CONST_DATA_HEADER_COMMENT))
-    file.write("{}\n".format(tommekalender))
-    file.write("{}\n".format(fraksjoner))
-
-    file.close()
-
-
-def _get_data(read_from_file=True):
-    data = None
-
-    if read_from_file:
-        data = _read_from_file()
-
-    if data is None:
-        print("NO CURRENT DATA FROM FILE. FETCHING FROM WEB. ")
-
-        tommekalender = _get_tommekalender('Kalli%C3%A5sen', '11700', '1')
-        fraksjoner = _get_fraksjoner()
-        data = tuple((tommekalender, fraksjoner))
+    def _get_from_web_api(self):
+        tommekalender = self._get_tommekalender_from_web_api()
+        fraksjoner = self._get_fraksjoner_from_web_api()
 
         if fraksjoner is not None and tommekalender is not None:
-            _write_to_file(tommekalender, fraksjoner)
+            self._write_to_file(tommekalender, fraksjoner)
 
-    return data
+        return tommekalender, fraksjoner
+
+    def get_calendar_list(self, refresh=False):
+        data = None
+
+        if not refresh:
+            data = self._read_from_file()
+
+        if refresh or data is None:
+            print("REFRESH OR NO DATA. FETCHING FROM WEB.")
+            tommekalender, fraksjoner = self._get_from_web_api()
+        else:
+            tommekalender, fraksjoner = data
+
+        kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
+
+        check_for_refresh = False
+        if not refresh:
+            check_for_refresh = self._check_for_refresh_of_data(kalender_list)
+
+        if check_for_refresh:
+            print("REFRESHING DATA...")
+            kalender_list = self.get_calendar_list(refresh=True)
+
+        print("RETURNING CALENDAR LIST")
+        return kalender_list
+
+    @staticmethod
+    def _parse_calendar_list(tommekalender, fraksjoner):
+        kalender_list = []
+
+        tommekalender_json = json.loads(tommekalender)
+        fraksjoner_json = json.loads(fraksjoner)
+
+        for calender_entry in tommekalender_json:
+            fraksjon_id = calender_entry['FraksjonId']
+
+            tommedato_forste, tommedato_neste = calender_entry['Tommedatoer']
+
+            tommedato_forste = datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S")
+            tommedato_neste = datetime.strptime(tommedato_neste, "%Y-%m-%dT%H:%M:%S")
+
+            for fraksjon in fraksjoner_json:
+                if fraksjon['Id'] == fraksjon_id:
+                    fraksjon_navn = fraksjon['Navn']
+                    fraksjon_ikon = fraksjon['Ikon']
+
+                    kalender_list.append((fraksjon_id, fraksjon_navn, fraksjon_ikon, tommedato_forste, tommedato_neste))
+                    continue
+
+        return kalender_list
+
+    @staticmethod
+    def _check_for_refresh_of_data(kalender_list):
+        print("CHECKING IF DATA NEEDS REFRESH")
+
+        for entry in kalender_list:
+            _, _, _, tommedato_forste, tommedato_neste = entry
+
+            if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
+                print("DATA NEEDS REFRESH")
+                return True
+
+        return False
 
 
-def get_calender():
-    data = _get_data()
-    if data is None:
-        print("NO DATA")
-        return None
+min_renovasjon = MinRenovasjon('Kalli%C3%A5sen', '11700', '1')
+kalender_list = min_renovasjon.get_calendar_list()
 
-    # Sjekker om data er utløpt.
-    # Hvis ja setter vi data = None og henter nye data
-
-    # Sjekker linje 2 og henter ut første dato. Dersom denne er tilbake i tid henter vi nye data.
-    # data = None
-
-    tommekalender, fraksjoner = data
-    tommekalender_json = json.loads(tommekalender)
-    fraksjoner_json = json.loads(fraksjoner)
-    kalender_list = []
-
-    for calender_entry in tommekalender_json:
-        fraksjon_id = calender_entry['FraksjonId']
-
-        tommedato_forste, tommedato_neste = calender_entry['Tommedatoer']
-
-        # Sjekker tommedato
-
-        tommedato_forste = datetime.datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S").strftime("%d-%m-%Y")
-        tommedato_neste = datetime.datetime.strptime(tommedato_neste, "%Y-%m-%dT%H:%M:%S").strftime("%d-%m-%Y")
-
-        for fraksjon in fraksjoner_json:
-            if fraksjon['Id'] == fraksjon_id:
-                fraksjon_navn = fraksjon['Navn']
-                fraksjon_ikon = fraksjon['Ikon']
-
-                kalender_list.append((fraksjon_id, fraksjon_navn, fraksjon_ikon, tommedato_forste, tommedato_neste))
-                continue
-
-    return kalender_list
-
-
-def main():
-    kalender = get_calender()
-    print(kalender)
-
-
-main()
+for fraksjon_id, fraksjon_navn, fraksjon_ikon, tommedato_forste, tommedato_neste in kalender_list:
+    print(fraksjon_id)
+    print(fraksjon_navn)
+    print(fraksjon_ikon)
+    print(tommedato_forste.strftime("%d-%m-%Y"))
+    print(tommedato_neste.strftime("%d-%m-%Y"))
