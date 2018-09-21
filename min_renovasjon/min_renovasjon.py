@@ -97,7 +97,7 @@ class MinRenovasjon:
     @staticmethod
     def _read_from_file():
         try:
-            _LOGGER.debug("Reading content from file")
+            _LOGGER.info("Reading content from file")
 
             file = open(CONST_DATA_FILENAME)
             lines = file.readlines()
@@ -114,11 +114,14 @@ class MinRenovasjon:
     def _write_to_file(tommekalender, fraksjoner):
         _LOGGER.debug("Writing content to file")
 
-        file = open(CONST_DATA_FILENAME, "w")
-        file.write("{}\n".format(CONST_DATA_HEADER_COMMENT))
-        file.write("{}\n".format(tommekalender))
-        file.write("{}\n".format(fraksjoner))
-        file.close()
+        try:
+            file = open(CONST_DATA_FILENAME, "w")
+            file.write("{}\n".format(CONST_DATA_HEADER_COMMENT))
+            file.write("{}\n".format(tommekalender))
+            file.write("{}\n".format(fraksjoner))
+            file.close()
+        except IOError as io_error:
+            _LOGGER.error("Could not write to file: {}".format(io_error))
 
     def _get_from_web_api(self):
         tommekalender = self._get_tommekalender_from_web_api()
@@ -136,7 +139,7 @@ class MinRenovasjon:
             data = self._read_from_file()
 
         if refresh or data is None:
-            _LOGGER.debug("Refresh or no data. Fetching from API.")
+            _LOGGER.info("Refresh or no data. Fetching from API.")
             tommekalender, fraksjoner = self._get_from_web_api()
         else:
             tommekalender, fraksjoner = data
@@ -148,10 +151,10 @@ class MinRenovasjon:
             check_for_refresh = self._check_for_refresh_of_data(kalender_list)
 
         if check_for_refresh:
-            _LOGGER.debug("Refreshing data...")
+            _LOGGER.info("Refreshing data...")
             kalender_list = self._get_calendar_list(refresh=True)
 
-        _LOGGER.debug("Returning calendar list")
+        _LOGGER.info("Returning calendar list")
         return kalender_list
 
     @staticmethod
@@ -181,13 +184,13 @@ class MinRenovasjon:
 
     @staticmethod
     def _check_for_refresh_of_data(kalender_list):
-        _LOGGER.debug("Checking if data needs refresh")
+        _LOGGER.info("Checking if data needs refresh")
 
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
             if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
-                _LOGGER.debug("Data need refresh")
+                _LOGGER.info("Data need refresh")
                 return True
 
         return False
