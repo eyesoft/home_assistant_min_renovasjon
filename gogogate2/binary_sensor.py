@@ -1,32 +1,62 @@
-"""
-Support for Gogogate2 garage Doors.
-
-For more details about this platform, please refer to the documentation
-https://home-assistant.io/components/binary_sensor.gogogate2/
-"""
 import logging
 
-from homeassistant.components.binary_sensor import (BinarySensorDevice)
-from homeassistant.const import (CONF_NAME)
-from ..__init__ import DATA_GOGOGATE2, DEFAULT_NAME, DOMAIN
+import voluptuous as vol
+
+from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD, CONF_IP_ADDRESS, CONF_NAME, TEMP_CELSIUS)
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.entity import Entity
+from homeassistant.components.binary_sensor import (PLATFORM_SCHEMA, BinarySensorDevice)
+
+REQUIREMENTS = ['pygogogate2==0.1.1']
 
 _LOGGER = logging.getLogger(__name__)
 
+DEFAULT_NAME = 'gogogate2'
 
-# noinspection PyUnusedLocal
+NOTIFICATION_ID = 'gogogate2_notification'
+NOTIFICATION_TITLE = 'Gogogate2 Cover Setup'
+
+SENSOR_SCHEMA = vol.Schema({
+    vol.Required(CONF_IP_ADDRESS): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Required(CONF_USERNAME): cv.string,
+    vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+})
+
+
+# noinspection PyUnusedLocal,PyUnresolvedReferences,PyPep8Naming
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Gogogate2 component."""
+    from pygogogate2 import Gogogate2API as pygogogate2
 
+    ip_address = config.get(CONF_IP_ADDRESS)
     name = config.get(CONF_NAME)
-    mygogogate2_list = hass.data[DATA_GOGOGATE2]
-    mygogogate2 = hass.data[DOMAIN]
+    password = config.get(CONF_PASSWORD)
+    username = config.get(CONF_USERNAME)
 
-    add_entities(MyGogogate2BinarySensor(
-        mygogogate2, door, name) for door in mygogogate2_list)
+    mygogogate2 = pygogogate2(username, password, ip_address)
+
+    try:
+        devices = mygogogate2.get_devices()
+        if devices is False:
+            raise ValueError(
+                "Username or Password is incorrect or no devices found")
+
+        add_entities(MyGogogate2BinarySensor(
+            mygogogate2, door, name) for door in devices)
+
+    except (TypeError, KeyError, NameError, ValueError) as ex:
+        _LOGGER.error("%s", ex)
+        hass.components.persistent_notification.create(
+            'Error: {}<br />'
+            'You will need to restart hass after fixing.'
+            ''.format(ex),
+            title=NOTIFICATION_TITLE,
+            notification_id=NOTIFICATION_ID)
 
 
 class MyGogogate2BinarySensor(BinarySensorDevice):
-    """Representation of a Gogogate2 binary sensor."""
+    """Representation of a Gogogate2 sensor."""
 
     def __init__(self, mygogogate2, device, name):
         """Initialize with API object, device id."""
@@ -53,6 +83,7 @@ class MyGogogate2BinarySensor(BinarySensorDevice):
 
     @property
     def is_on(self):
+        # print("==== {}".format(self._status))
         if self._status == "closed":
             return False
         else:
@@ -62,3 +93,20 @@ class MyGogogate2BinarySensor(BinarySensorDevice):
         """Update status."""
         self._status = self.mygogogate2.get_status(self.device_id)
         self._available = True
+        # print("==== {}".format(self._status))
+
+        """  
+        try:
+            devices = self.mygogogate2.get_devices()
+            self._available = True
+            if devices is False:
+                raise ValueError(
+                    "Username or Password is incorrect or no devices found")
+
+            for device in devices:
+                if device['door'] == self.device_id:
+                    self._status = device['status']
+        except (TypeError, KeyError, NameError, ValueError) as ex:
+            _LOGGER.error("%s", ex)
+            self._available = False
+        """

@@ -6,63 +6,26 @@ https://home-assistant.io/components/cover.gogogate2/
 """
 import logging
 
-import voluptuous as vol
-
-from homeassistant.components.cover import (
-    CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE)
-from homeassistant.const import (
-    CONF_USERNAME, CONF_PASSWORD, STATE_CLOSED,
-    CONF_IP_ADDRESS, CONF_NAME)
-import homeassistant.helpers.config_validation as cv
-
-REQUIREMENTS = ['pygogogate2==0.1.1']
+from homeassistant.components.cover import (CoverDevice, SUPPORT_OPEN, SUPPORT_CLOSE)
+from homeassistant.const import (STATE_CLOSED, CONF_NAME)
+from ..gogogate2 import DATA_GOGOGATE2, DEFAULT_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'gogogate2'
 
-NOTIFICATION_ID = 'gogogate2_notification'
-NOTIFICATION_TITLE = 'Gogogate2 Cover Setup'
-
-COVER_SCHEMA = vol.Schema({
-    vol.Required(CONF_IP_ADDRESS): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
-    vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-})
-
-
+# noinspection PyUnusedLocal
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Gogogate2 component."""
-    from pygogogate2 import Gogogate2API as pygogogate2
 
-    ip_address = config.get(CONF_IP_ADDRESS)
     name = config.get(CONF_NAME)
-    password = config.get(CONF_PASSWORD)
-    username = config.get(CONF_USERNAME)
+    mygogogate2_list = hass.data[DATA_GOGOGATE2]
+    mygogogate2 = hass.data[DOMAIN]
 
-    mygogogate2 = pygogogate2(username, password, ip_address)
-
-    try:
-        devices = mygogogate2.get_devices()
-        if devices is False:
-            raise ValueError(
-                "Username or Password is incorrect or no devices found")
-
-        add_entities(MyGogogate2Device(
-            mygogogate2, door, name) for door in devices)
-
-    except (TypeError, KeyError, NameError, ValueError) as ex:
-        _LOGGER.error("%s", ex)
-        hass.components.persistent_notification.create(
-            'Error: {}<br />'
-            'You will need to restart hass after fixing.'
-            ''.format(ex),
-            title=NOTIFICATION_TITLE,
-            notification_id=NOTIFICATION_ID)
+    add_entities(MyGogogate2Cover(
+        mygogogate2, door, name) for door in mygogogate2_list)
 
 
-class MyGogogate2Device(CoverDevice):
+class MyGogogate2Cover(CoverDevice):
     """Representation of a Gogogate2 cover."""
 
     def __init__(self, mygogogate2, device, name):
