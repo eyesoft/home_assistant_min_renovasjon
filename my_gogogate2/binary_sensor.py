@@ -11,15 +11,15 @@ REQUIREMENTS = ['pygogogate2==0.1.1']
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = 'gogogate2'
+DEFAULT_NAME = 'my_gogogate2'
 
-NOTIFICATION_ID = 'gogogate2_notification'
-NOTIFICATION_TITLE = 'Gogogate2 Cover Setup'
+NOTIFICATION_ID = 'my_gogogate2_notification'
+NOTIFICATION_TITLE = 'My Gogogate2 Cover Setup'
 
 SENSOR_SCHEMA = vol.Schema({
-    vol.Required(CONF_IP_ADDRESS): cv.string,
-    vol.Required(CONF_PASSWORD): cv.string,
-    vol.Required(CONF_USERNAME): cv.string,
+    # vol.Required(CONF_IP_ADDRESS): cv.string,
+    # vol.Required(CONF_PASSWORD): cv.string,
+    # vol.Required(CONF_USERNAME): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
 })
 
@@ -29,10 +29,14 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Gogogate2 component."""
     from pygogogate2 import Gogogate2API as pygogogate2
 
-    ip_address = config.get(CONF_IP_ADDRESS)
+    # ip_address = config.get(CONF_IP_ADDRESS)
     name = config.get(CONF_NAME)
-    password = config.get(CONF_PASSWORD)
-    username = config.get(CONF_USERNAME)
+    # password = config.get(CONF_PASSWORD)
+    # username = config.get(CONF_USERNAME)
+
+    ip_address = "0.0.0.0"
+    password = "pass"
+    username = "user"
 
     mygogogate2 = pygogogate2(username, password, ip_address)
 
