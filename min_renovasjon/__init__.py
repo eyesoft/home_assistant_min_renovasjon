@@ -23,8 +23,6 @@ CONST_APP_KEY = "RenovasjonAppKey"
 CONST_URL_FRAKSJONER = 'https://komteksky.norkart.no/komtek.renovasjonwebapi/api/fraksjoner'
 CONST_URL_TOMMEKALENDER = 'https://komteksky.norkart.no/komtek.renovasjonwebapi/api/tommekalender?' \
                           'gatenavn=[gatenavn]&gatekode=[gatekode]&husnr=[husnr]'
-CONST_DATA_FILENAME = "min_renovasjon.dat"
-CONST_DATA_HEADER_COMMENT = '# Auto-generated file. Do not edit.'
 CONST_APP_KEY_VALUE = "AE13DEEC-804F-4615-A74E-B4FAC11F0A30"
 
 CONFIG_SCHEMA = vol.Schema({
@@ -94,49 +92,17 @@ class MinRenovasjon:
             _LOGGER.error(response.status_code)
             return None
 
-    @staticmethod
-    def _read_from_file():
-        try:
-            _LOGGER.info("Reading content from file")
-
-            file = open(CONST_DATA_FILENAME)
-            lines = file.readlines()
-            tommekalender = lines[1]
-            fraksjoner = lines[2]
-            file.close()
-
-            return tuple((tommekalender, fraksjoner))
-        except FileNotFoundError:
-            _LOGGER.debug("File not found")
-            return None
-
-    @staticmethod
-    def _write_to_file(tommekalender, fraksjoner):
-        _LOGGER.debug("Writing content to file")
-
-        try:
-            file = open(CONST_DATA_FILENAME, "w")
-            file.write("{}\n".format(CONST_DATA_HEADER_COMMENT))
-            file.write("{}\n".format(tommekalender))
-            file.write("{}\n".format(fraksjoner))
-            file.close()
-        except IOError as io_error:
-            _LOGGER.error("Could not write to file: {}".format(io_error))
-
     def _get_from_web_api(self):
         tommekalender = self._get_tommekalender_from_web_api()
         fraksjoner = self._get_fraksjoner_from_web_api()
 
-        if fraksjoner is not None and tommekalender is not None:
-            self._write_to_file(tommekalender, fraksjoner)
+        _LOGGER.debug(f"Tommekalender: {tommekalender}")
+        _LOGGER.debug(f"Fraksjoner: {fraksjoner}")
 
         return tommekalender, fraksjoner
 
     def _get_calendar_list(self, refresh=False):
         data = None
-
-        if not refresh:
-            data = self._read_from_file()
 
         if refresh or data is None:
             _LOGGER.info("Refresh or no data. Fetching from API.")
@@ -151,7 +117,6 @@ class MinRenovasjon:
             check_for_refresh = self._check_for_refresh_of_data(kalender_list)
 
         if check_for_refresh:
-            _LOGGER.info("Refreshing data...")
             kalender_list = self._get_calendar_list(refresh=True)
 
         _LOGGER.info("Returning calendar list")
@@ -184,13 +149,11 @@ class MinRenovasjon:
 
     @staticmethod
     def _check_for_refresh_of_data(kalender_list):
-        _LOGGER.info("Checking if data needs refresh")
-
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
             if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
-                _LOGGER.info("Data need refresh")
+                _LOGGER.info("Data needs refresh")
                 return True
 
         return False
