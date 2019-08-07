@@ -169,4 +169,6 @@ class MinRenovasjon:
         return self._kalender_list
 
     def format_date(self, date):
+        if self._date_format == "None":
+            return date
         return date.strftime(self._date_format)
