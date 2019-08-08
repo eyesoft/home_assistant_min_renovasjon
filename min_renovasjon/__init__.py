@@ -131,11 +131,18 @@ class MinRenovasjon:
 
         for calender_entry in tommekalender_json:
             fraksjon_id = calender_entry['FraksjonId']
+            tommedato_forste = None
+            tommedato_neste = None
 
-            tommedato_forste, tommedato_neste = calender_entry['Tommedatoer']
+            if len(calender_entry['Tommedatoer']) == 1:
+                tommedato_forste = calender_entry['Tommedatoer'][0]
+            else:
+                tommedato_forste, tommedato_neste = calender_entry['Tommedatoer']
 
-            tommedato_forste = datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S")
-            tommedato_neste = datetime.strptime(tommedato_neste, "%Y-%m-%dT%H:%M:%S")
+            if tommedato_forste is not None:
+                tommedato_forste = datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S")
+            if tommedato_neste is not None:
+                tommedato_neste = datetime.strptime(tommedato_neste, "%Y-%m-%dT%H:%M:%S")
 
             for fraksjon in fraksjoner_json:
                 if fraksjon['Id'] == fraksjon_id:
