@@ -9,6 +9,7 @@ min_renovasjon:
   street_code: "12345"
   house_no: "12"
   county_id: "1234"
+  date_format: "None"
 
 
 sensor:
@@ -46,4 +47,6 @@ Fraksjoner:
 25: Farlig avfall\
 26: Matavfall hytter\
 27: Restavfall hytter  \
-28: Papir hytter\
+28: Papir hytter
+
+date_format defaults to "%d/%m/%Y" if not specified. If set to "None" no formatting of the date is performed. 
