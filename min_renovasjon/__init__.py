@@ -1,3 +1,4 @@
+import urllib.parse
 import requests
 import json
 from datetime import date
@@ -52,12 +53,19 @@ async def async_setup(hass, config):
 
 class MinRenovasjon:
     def __init__(self, gatenavn, gatekode, husnr, kommunenr, date_format):
-        self.gatenavn = gatenavn
+        self.gatenavn = self._url_encode(gatenavn)
         self.gatekode = gatekode
         self.husnr = husnr
         self._kommunenr = kommunenr
         self._date_format = date_format
         self._kalender_list = self._get_calendar_list()
+
+    @staticmethod
+    def _url_encode(string):
+        string_decoded_encoded = urllib.parse.quote(urllib.parse.unquote(string))
+        if string_decoded_encoded != string:
+            string = string_decoded_encoded
+        return string
 
     def refresh_calendar(self):
         do_refresh = self._check_for_refresh_of_data(self._kalender_list)

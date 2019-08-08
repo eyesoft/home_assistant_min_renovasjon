@@ -6,8 +6,8 @@ Min Renovasjon:
 ```
 min_renovasjon:
   street_name: "Min gate"
-  street_code: "12345"
   house_no: "12"
+  street_code: "12345"
   county_id: "1234"
   date_format: "None"
 
@@ -20,13 +20,27 @@ sensor:
       - 19
   ```
 
-Street_code (adressekode) and county_id (kommunenummer) can be found with this REST-API call:
+street_name: \
+The name of the street without house number, e.g. "Slottsplassen".
+
+house_no: \
+The number of the house, e.g. "1". 
+
+street_code: \
+county_id: \
+Can be found with the following REST-API call. "street_code" equals to "adressekode" and "county_id" equals to 
+"kommunenummer". 
 ```
 https://ws.geonorge.no/adresser/v1/#/default/get_sok
 https://ws.geonorge.no/adresser/v1/sok?sok=Min%20Gate%2012
 ```
 
-fraction_id (might be different depending on county):
+date_format: \
+Defaults to "%d/%m/%Y" if not specified. If set to "None" no formatting of the date is performed. 
+
+fraction_id:\
+One or more fractions for which a sensor is to be set up. ID's might be different depending on county. Turn on debug logging in Home Asstistant to log the list of fractions 
+(https://www.home-assistant.io/components/logger/).
 ```
 1: Restavfall
 2: Papir
@@ -50,4 +64,3 @@ fraction_id (might be different depending on county):
 28: Papir hytter
 ```
 
-date_format defaults to "%d/%m/%Y" if not specified. If set to "None" no formatting of the date is performed. 
