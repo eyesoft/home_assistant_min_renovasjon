@@ -1,7 +1,7 @@
 # home-assistant-custom-components
 Custom components for Home Assistant (https://www.home-assistant.io/)
 
-Min Renovasjon:
+####Min Renovasjon:
 
 ```
 min_renovasjon:
@@ -20,25 +20,25 @@ sensor:
       - 19
   ```
 
-street_name: \
+**street_name:**\
 The name of the street without house number, e.g. "Slottsplassen".
 
-house_no: \
+**house_no:** \
 The number of the house, e.g. "1". 
 
-street_code: \
-county_id: \
-Can be found with the following REST-API call. "street_code" equals to "adressekode" and "county_id" equals to 
-"kommunenummer". 
+**street_code:** \
+**county_id:** \
+Can be found with this REST-API call. 
 ```
 https://ws.geonorge.no/adresser/v1/#/default/get_sok
 https://ws.geonorge.no/adresser/v1/sok?sok=Min%20Gate%2012
 ```
+"street_code" equals to "adressekode" and "county_id" equals to "kommunenummer". 
 
-date_format: \
+**date_format:** \
 Defaults to "%d/%m/%Y" if not specified. If set to "None" no formatting of the date is performed. 
 
-fraction_id:\
+**fraction_id:**\
 One or more fractions for which a sensor is to be set up. ID's might be different depending on county. Turn on debug logging in Home Asstistant to log the list of fractions 
 (https://www.home-assistant.io/components/logger/).
 ```
