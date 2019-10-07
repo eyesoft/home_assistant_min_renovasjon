@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
@@ -14,6 +15,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_FRACTION_ID): vol.All(cv.ensure_list),
 })
 
+SCAN_INTERVAL = timedelta(minutes=30)
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     fraction_ids = config.get(CONF_FRACTION_ID)
@@ -28,7 +31,6 @@ class MinRenovasjonSensor(Entity):
         """Initialize with API object, device id."""
         self._min_renovasjon = min_renovasjon
         self._fraction_id = fraction_id
-        self._available = True
 
     @property
     def name(self):
@@ -38,21 +40,18 @@ class MinRenovasjonSensor(Entity):
             return fraction[1]
 
     @property
-    def device_class(self):
-        """Return the class of this device."""
-        return None
-
-    @property
-    def available(self):
-        """Could the device be accessed during the last update call."""
-        return self._available
-
-    @property
     def state(self):
         """Return the state/date of the fraction."""
         fraction = self._min_renovasjon.get_calender_for_fraction(self._fraction_id)
         if fraction is not None:
             return self._min_renovasjon.format_date(fraction[3])
+
+    @property
+    def entity_picture(self):
+        """Symbol."""
+        fraction = self._min_renovasjon.get_calender_for_fraction(self._fraction_id)
+        if fraction is not None:
+            return fraction[2]
 
     def update(self):
         """Update calendar."""
