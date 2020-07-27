@@ -50,8 +50,9 @@ class MinRenovasjonSensor(Entity):
     def entity_picture(self):
         """Symbol."""
         fraction = self._min_renovasjon.get_calender_for_fraction(self._fraction_id)
-        if fraction is not None:
-            return fraction[2]
+        if fraction is None:
+            return None
+        return fraction[2]
 
     def update(self):
         """Update calendar."""
