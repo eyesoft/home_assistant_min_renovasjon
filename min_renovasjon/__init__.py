@@ -85,7 +85,7 @@ class MinRenovasjon:
             data = response.text
             return data
         else:
-            _LOGGER.error(response.status_code)
+            _LOGGER.error("GET Tommekalender returned: %s", response.status_code)
             return None
 
     def _get_fraksjoner_from_web_api(self):
@@ -97,7 +97,7 @@ class MinRenovasjon:
             data = response.text
             return data
         else:
-            _LOGGER.error(response.status_code)
+            _LOGGER.error("GET Fraksjoner returned: %s", response.status_code)
             return None
 
     def _get_from_web_api(self):
@@ -120,6 +120,9 @@ class MinRenovasjon:
 
         kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
 
+        if kalender_list is None:
+            return None
+
         check_for_refresh = False
         if not refresh:
             check_for_refresh = self._check_for_refresh_of_data(kalender_list)
@@ -133,6 +136,10 @@ class MinRenovasjon:
     @staticmethod
     def _parse_calendar_list(tommekalender, fraksjoner):
         kalender_list = []
+
+        if tommekalender is None or fraksjoner is None:
+            _LOGGER.error("Could not fetch calendar. Check configuration parameters.")
+            return None
 
         tommekalender_json = json.loads(tommekalender)
         fraksjoner_json = json.loads(fraksjoner)
@@ -164,6 +171,10 @@ class MinRenovasjon:
 
     @staticmethod
     def _check_for_refresh_of_data(kalender_list):
+        if kalender_list is None:
+            _LOGGER.info("Calendar is empty, forcing refresh")
+            return True
+
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
@@ -174,6 +185,9 @@ class MinRenovasjon:
         return False
 
     def get_calender_for_fraction(self, fraksjon_id):
+        if self._kalender_list is None:
+            return None
+
         for entry in self._kalender_list:
             entry_fraksjon_id, _, _, _, _= entry
             if fraksjon_id == entry_fraksjon_id:
