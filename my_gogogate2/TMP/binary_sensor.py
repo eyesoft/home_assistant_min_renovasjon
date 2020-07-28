@@ -2,12 +2,12 @@
 Support for Gogogate2 garage Doors.
 
 For more details about this platform, please refer to the documentation
-https://home-assistant.io/components/sensor.gogogate2/
+https://home-assistant.io/components/binary_sensor.my_gogogate2/
 """
 import logging
 
-from homeassistant.const import (CONF_NAME, TEMP_CELSIUS)
-from homeassistant.helpers.entity import Entity
+from homeassistant.components.binary_sensor import (BinarySensorDevice)
+from homeassistant.const import (CONF_NAME)
 from ..gogogate2 import DATA_GOGOGATE2, DEFAULT_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,12 +21,12 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     mygogogate2_list = hass.data[DATA_GOGOGATE2]
     mygogogate2 = hass.data[DOMAIN]
 
-    add_entities(MyGogogate2Sensor(
+    add_entities(MyGogogate2BinarySensor(
         mygogogate2, door, name) for door in mygogogate2_list)
 
 
-class MyGogogate2Sensor(Entity):
-    """Representation of a Gogogate2 sensor."""
+class MyGogogate2BinarySensor(BinarySensorDevice):
+    """Representation of a Gogogate2 binary sensor."""
 
     def __init__(self, mygogogate2, device, name):
         """Initialize with API object, device id."""
@@ -34,7 +34,6 @@ class MyGogogate2Sensor(Entity):
         self.device_id = device['door']
         self._name = name or device['name']
         self._status = device['status']
-        self._temperature = device['temperature']
         self._available = None
 
     @property
@@ -45,7 +44,7 @@ class MyGogogate2Sensor(Entity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return 'temperature'
+        return 'garage_door'
 
     @property
     def available(self):
@@ -53,32 +52,13 @@ class MyGogogate2Sensor(Entity):
         return self._available
 
     @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._temperature
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit this state is expressed in."""
-        return TEMP_CELSIUS
+    def is_on(self):
+        if self._status == "closed":
+            return False
+        else:
+            return True
 
     def update(self):
-        """Update temperature."""
-        self._temperature = self._get_temperature(self.device_id)
+        """Update status."""
+        self._status = self.mygogogate2.get_status(self.device_id)
         self._available = True
-
-    def _get_temperature(self, device_id):
-        temperature = None
-
-        try:
-            devices = self.mygogogate2.get_devices()
-            if devices is False:
-                return None
-
-            for device in devices:
-                if device['door'] == device_id:
-                    temperature = device['temperature']
-        except (TypeError, KeyError, NameError, ValueError) as ex:
-            _LOGGER.error("%s", ex)
-
-        return temperature

@@ -2,7 +2,7 @@
 Support for Gogogate2 garage Doors.
 
 For more details about this platform, please refer to the documentation
-https://home-assistant.io/components/cover.gogogate2/
+https://home-assistant.io/components/cover.my_gogogate2/
 """
 import logging
 

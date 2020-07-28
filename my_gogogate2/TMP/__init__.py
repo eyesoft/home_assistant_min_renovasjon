@@ -15,8 +15,8 @@ REQUIREMENTS = ['pygogogate2==0.1.1']
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "gogogate2"
-DEFAULT_NAME = 'gogogate2'
+DOMAIN = "my_gogogate2"
+DEFAULT_NAME = 'my_gogogate2'
 DATA_GOGOGATE2 = "data_gogogate2"
 
 NOTIFICATION_ID = 'gogogate2_notification'
