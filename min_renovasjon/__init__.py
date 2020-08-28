@@ -37,7 +37,7 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 
-async def async_setup(hass, config):
+def setup(hass, config):
     """Set up the MinRenovasjon component."""
     street_name = config[DOMAIN][CONF_STREET_NAME]
     street_code = config[DOMAIN][CONF_STREET_CODE]
