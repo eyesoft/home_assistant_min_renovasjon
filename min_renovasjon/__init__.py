@@ -37,7 +37,7 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 
-async def async_setup(hass, config):
+def setup(hass, config):
     """Set up the MinRenovasjon component."""
     street_name = config[DOMAIN][CONF_STREET_NAME]
     street_code = config[DOMAIN][CONF_STREET_CODE]
@@ -83,6 +83,10 @@ class MinRenovasjon:
         response = requests.get(url, headers=header)
         if response.status_code == requests.codes.ok:
             data = response.text
+            if data == "true":
+                _LOGGER.error("Calendar is empty")
+                return None
+            
             return data
         else:
             _LOGGER.error("GET Tommekalender returned: %s", response.status_code)
@@ -113,7 +117,7 @@ class MinRenovasjon:
         data = None
 
         if refresh or data is None:
-            _LOGGER.info("Refresh or no data. Fetching from API.")
+            _LOGGER.debug("Refresh or no data. Fetching from API.")
             tommekalender, fraksjoner = self._get_from_web_api()
         else:
             tommekalender, fraksjoner = data
@@ -130,7 +134,7 @@ class MinRenovasjon:
         if check_for_refresh:
             kalender_list = self._get_calendar_list(refresh=True)
 
-        _LOGGER.info("Returning calendar list")
+        _LOGGER.debug("Returning calendar list")
         return kalender_list
 
     @staticmethod
@@ -140,6 +144,8 @@ class MinRenovasjon:
         if tommekalender is None or fraksjoner is None:
             _LOGGER.error("Could not fetch calendar. Check configuration parameters.")
             return None
+
+        _LOGGER.debug(tommekalender)
 
         tommekalender_json = json.loads(tommekalender)
         fraksjoner_json = json.loads(fraksjoner)
@@ -172,14 +178,14 @@ class MinRenovasjon:
     @staticmethod
     def _check_for_refresh_of_data(kalender_list):
         if kalender_list is None:
-            _LOGGER.info("Calendar is empty, forcing refresh")
+            _LOGGER.debug("Calendar is empty, forcing refresh")
             return True
 
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
             if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
-                _LOGGER.info("Data needs refresh")
+                _LOGGER.debug("Data needs refresh")
                 return True
 
         return False
