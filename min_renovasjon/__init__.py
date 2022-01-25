@@ -184,6 +184,10 @@ class MinRenovasjon:
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
+            if tommedato_forste is None or tommedato_neste is None:
+                _LOGGER.debug("Data needs refresh")
+                return True
+
             if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
                 _LOGGER.debug("Data needs refresh")
                 return True
