@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Min Renovasjon adresseinformasjon",
+        "description": "Tast inn din adresse.",
+        "data": {
+          "street_name": "Gatenavn",
+          "street_code": "Gatekode",
+          "house_no": "Husnummer",
+          "county_id": "FylkeId",
+          "date_format": "Datoformat"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Ukjent feil oppstod.",
+      "municipality_not_customer": "Valgt kommune er ikke en kunde av Min Renovasjon!",
+      "no_address_found": "Ingen adresse funnet.",
+      "multiple_addresses_found": "Mer enn en adresse funnet. Vennligst begrens søket."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Min Renovasjon avfallstyper",
+        "description": "Velg de avfallstypene det skal lages sensor av.",
+        "data": {
+          "fraction_ids": "Avfallstyper"
+        }
+      }
+    }
+  }
+}

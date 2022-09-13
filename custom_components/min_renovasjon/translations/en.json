@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Min Renovasjon address information",
+        "description": "Enter your address information.",
+        "data": {
+          "street_name": "Street name",
+          "street_code": "Street code",
+          "house_no": "House no",
+          "county_id": "County Id",
+          "date_format": "Date format"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unknown error occured.",
+      "municipality_not_customer": "Selected municipality is not a customer of Min Renovasjon!",
+      "no_address_found": "No address found.",
+      "multiple_addresses_found": "More than one addresses found. Only one address should be returned. Please narrow your search."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Min Renovasjon fractions",
+        "description": "Select fractions from which sensors are to be made.",
+        "data": {
+          "fraction_ids": "Fractions"
+        }
+      }
+    }
+  }
+}
