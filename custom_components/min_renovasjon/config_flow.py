@@ -187,11 +187,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options."""
 
         if user_input is not None:
+            if "date_format" not in user_input:
+                user_input["date_format"] = "None"
+           
             self.options.update(user_input)
             return self.async_create_entry(title=DOMAIN, data=self.options)
 
         options = self.config_entry.options
         fraction_ids = options.get(CONF_FRACTION_IDS, [])
+        date_format = options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
         
         municipality_code = self.config_entry.data.get(CONF_COUNTY_ID, "")
         fraction_list = await self._get_fractions(municipality_code)
@@ -204,7 +208,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_FRACTION_IDS, default=fraction_ids): cv.multi_select(fractions)
+                    vol.Required(CONF_FRACTION_IDS, default=fraction_ids): cv.multi_select(fractions),
+                    vol.Optional(CONF_DATE_FORMAT, description={"suggested_value": date_format}): cv.string
                 }
             )
         )
@@ -220,4 +225,3 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     return json.loads(response.decode("UTF-8"))
 
         return None
-

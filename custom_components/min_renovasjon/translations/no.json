@@ -26,7 +26,8 @@
         "title": "Min Renovasjon avfallstyper",
         "description": "Velg de avfallstypene det skal lages sensor av.",
         "data": {
-          "fraction_ids": "Avfallstyper"
+          "fraction_ids": "Avfallstyper",
+          "date_format": "Datoformatering"
         }
       }
     }

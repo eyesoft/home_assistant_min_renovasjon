@@ -49,8 +49,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     street_code = config[DOMAIN][CONF_STREET_CODE]
     house_no = config[DOMAIN][CONF_HOUSE_NO]
     county_id = config[DOMAIN][CONF_COUNTY_ID]
-    #date_format = config[DOMAIN][CONF_DATE_FORMAT]
-    date_format = None
+    date_format = config[DOMAIN][CONF_DATE_FORMAT]
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
     hass.data[DOMAIN]["data"] = min_renovasjon
@@ -65,8 +64,8 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     street_code = config_entry.data.get(CONF_STREET_CODE, "")
     house_no = config_entry.data.get(CONF_HOUSE_NO, "")
     county_id = config_entry.data.get(CONF_COUNTY_ID, "")
-    #date_format = config_entry.data.get(CONF_DATE_FORMAT, "")
-    date_format = None
+    date_format = config_entry.options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
+    
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
     hass.data[DOMAIN]["data"] = min_renovasjon
@@ -84,7 +83,7 @@ class MinRenovasjon:
         self.gatekode = gatekode
         self.husnr = husnr
         self._kommunenr = kommunenr
-        #self._date_format = date_format
+        self._date_format = date_format
 
     @staticmethod
     def _url_encode(string):
@@ -228,7 +227,6 @@ class MinRenovasjon:
         return self._hass.data[DOMAIN]["calendar_list"]
 
     def format_date(self, date):
-        return date
-        #if self._date_format == "None":
-        #    return date
-        #return date.strftime(self._date_format)
+        if self._date_format == "None":
+            return date
+        return date.strftime(self._date_format)

@@ -26,7 +26,8 @@
         "title": "Min Renovasjon fractions",
         "description": "Select fractions from which sensors are to be made.",
         "data": {
-          "fraction_ids": "Fractions"
+          "fraction_ids": "Fractions",
+          "date_format": "Date formatting"
         }
       }
     }

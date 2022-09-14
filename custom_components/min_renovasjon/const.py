@@ -15,4 +15,3 @@ CONF_FRACTION_ID = "fraction_id"
 ADDRESS_LOOKUP_URL = "https://ws.geonorge.no/adresser/v1/sok?"
 APP_CUSTOMERS_URL = "https://www.webatlas.no/wacloud/servicerepository/CatalogueService.svc/json/GetRegisteredAppCustomers"
 KOMTEK_API_BASE_URL = "https://norkartrenovasjon.azurewebsites.net/proxyserver.ashx"
-

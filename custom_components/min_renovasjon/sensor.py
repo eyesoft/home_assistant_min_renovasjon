@@ -91,7 +91,7 @@ class MinRenovasjonSensor(Entity):
     @property
     def state(self):
         """Return the state/date of the fraction."""
-        return self._state
+        return self._min_renovasjon.format_date(self._state)
 
     async def async_update(self):
         """Update calendar."""
@@ -103,15 +103,15 @@ class MinRenovasjonSensor(Entity):
                 pickupDate = fraction[3].date()
                 today = date.today()
                 diff = pickupDate - today
+                self._state = fraction[3]
+                
                 self._attributes['days_to_pickup'] = diff.days
-                self._attributes['formatted_date'] = self._min_renovasjon.format_date(fraction[3])
+                self._attributes['formatted_date'] = self._min_renovasjon.format_date(self._state)
+                self._attributes['raw_date'] = self._state
                 self._attributes['date_next_pickup'] = fraction[4]
                 self._attributes['fraction_id'] = self._fraction_id
                 self._attributes['fraction_name'] = fraction[1]
                 self._attributes['fraction_icon'] = fraction[2]
-                
-                self._state = fraction[3]
-                
+               
     async def async_added_to_hass(self):
         await self.async_update()
-
