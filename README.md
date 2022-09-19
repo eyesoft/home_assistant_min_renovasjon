@@ -7,9 +7,10 @@ Home Assistant integration of the norwegian Min Renovasjon app.
 ## Installation
 Under HACS -> Integrations, add custom repository "https://github.com/eyesoft/home_assistant_min_renovasjon/" with Category "Integration". 
 
-Search for repository "Min Renovasjon" and download it. 
+Search for repository "Min Renovasjon" and download it. Restart Home Assistant.
 
 Go to Settings > Integrations and Add Integration "Min Renovasjon". Type in address to search, e.g. "Min gate 12, 0153" (street address comma zipcode).
+
 Click Configure and choose fractions to create sensors.
 
 Restart Home Assistant.
