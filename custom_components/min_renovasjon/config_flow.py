@@ -28,7 +28,10 @@ from .const import (
     APP_CUSTOMERS_URL,
     CONST_APP_KEY_VALUE,
     KOMTEK_API_BASE_URL,
-    CONST_URL_FRAKSJONER
+    CONST_URL_FRAKSJONER,
+    CONST_URL_TOMMEKALENDER,
+    CONST_KOMMUNE_NUMMER,
+    CONST_APP_KEY
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,7 +192,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             if "date_format" not in user_input:
                 user_input["date_format"] = "None"
-           
+
             self.options.update(user_input)
             return self.async_create_entry(title=DOMAIN, data=self.options)
 
@@ -198,11 +201,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         date_format = options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
         
         municipality_code = self.config_entry.data.get(CONF_COUNTY_ID, "")
+        street_name = self.config_entry.data.get(CONF_STREET_NAME, "")
+        street_code = self.config_entry.data.get(CONF_STREET_CODE, "")
+        house_no = self.config_entry.data.get(CONF_HOUSE_NO, "")
+        
         fraction_list = await self._get_fractions(municipality_code)
+        calendar = await self._get_calendar(municipality_code, street_name, street_code, house_no)
         fractions = {}
         
         for fraction in fraction_list:
-            fractions[str(fraction["Id"])] = fraction["Navn"]
+            if calendar is not None:
+                if [item for item in calendar if item["FraksjonId"] == fraction["Id"]]:
+                    fractions[str(fraction["Id"])] = fraction["Navn"]
+            else:
+                fractions[str(fraction["Id"])] = fraction["Navn"]
 
         return self.async_show_form(
             step_id="init",
@@ -223,5 +235,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 response = await resp.read()
                 if resp.ok:
                     return json.loads(response.decode("UTF-8"))
+                else:
+                    _LOGGER.error("_get_fractions returned: %s", resp)
+                    return None
+        return None
 
+    async def _get_calendar(self, municipality_code, street_name, street_code, house_no) -> Dict:
+        header = {CONST_KOMMUNE_NUMMER: municipality_code, CONST_APP_KEY: CONST_APP_KEY_VALUE}
+        url = CONST_URL_TOMMEKALENDER
+        url = url.replace('[gatenavn]', street_name)
+        url = url.replace('[gatekode]', street_code)
+        url = url.replace('[husnr]', house_no)
+
+        async with aiohttp.ClientSession(headers=header) as session:
+            async with session.get(url) as resp:
+                response = await resp.read()
+                if resp.ok:
+                    return json.loads(response.decode("UTF-8"))
+                else:
+                    _LOGGER.error("_get_calendar returned: %s", resp)
+                    return None
         return None
