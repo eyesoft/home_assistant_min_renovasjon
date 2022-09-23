@@ -132,29 +132,6 @@ class MinRenovasjon:
         fraksjoner = await self._get_fraksjoner_from_web_api()
         return tommekalender, fraksjoner
 
-    async def _get_calendar_list(self, refresh=False):
-        data = self._hass.data[DOMAIN]["calendar_list"]
-        
-        if refresh or data is None:
-            tommekalender, fraksjoner = await self._get_from_web_api()
-            kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
-        else:
-            kalender_list = data
-
-        if kalender_list is None:
-            return None
-
-        check_for_refresh = False
-        if not refresh:
-            check_for_refresh = self._check_for_refresh_of_data(kalender_list)
-
-        if check_for_refresh:
-            kalender_list = await self._get_calendar_list(refresh=True)
-
-        self._hass.data[DOMAIN]["calendar_list"] = kalender_list
-        
-        return kalender_list
-
     @staticmethod
     def _parse_calendar_list(tommekalender, fraksjoner):
         kalender_list = []
@@ -200,31 +177,55 @@ class MinRenovasjon:
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
-            if tommedato_forste is None or tommedato_neste is None:
-                _LOGGER.debug("Data needs refresh")
-                return True
-
-            if tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
+            if tommedato_forste is None or tommedato_neste is None or tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
                 _LOGGER.debug("Data needs refresh")
                 return True
 
         return False
 
-    async def get_calender_for_fraction(self, fraksjon_id):
-        calendar_list = self._hass.data[DOMAIN]["calendar_list"]
-    
-        if calendar_list is None:
-            calendar_list = await self._get_calendar_list()
-            self._hass.data[DOMAIN]["calendar_list"] = calendar_list
-        
-        for entry in calendar_list:
-            entry_fraksjon_id, _, _, _, _= entry
-            if int(fraksjon_id) == int(entry_fraksjon_id):
-                return entry
-
     @property
     def calender_list(self):
         return self._hass.data[DOMAIN]["calendar_list"]
+
+    async def get_calender_for_fraction(self, fraksjon_id):
+        calendar_list = self._hass.data[DOMAIN]["calendar_list"]
+        if calendar_list is None:
+            calendar_list = await self.get_calendar_list()
+            self._hass.data[DOMAIN]["calendar_list"] = calendar_list
+
+        for entry in calendar_list:
+            if entry is not None:
+                entry_fraksjon_id, _, _, tommedato_forste, tommedato_neste = entry
+                if int(fraksjon_id) == int(entry_fraksjon_id):
+                    if tommedato_forste is None or tommedato_neste is None or tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
+                        _LOGGER.debug("Data needs refresh")
+                        self._hass.data[DOMAIN]["calendar_list"] = None
+                        entry = await self.get_calender_for_fraction(fraksjon_id)
+                    return entry
+        return None
+
+    async def get_calendar_list(self, refresh=False):
+        data = self._hass.data[DOMAIN]["calendar_list"]
+        
+        if refresh or data is None:
+            tommekalender, fraksjoner = await self._get_from_web_api()
+            kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
+        else:
+            kalender_list = data
+
+        if kalender_list is None:
+            return None
+
+        check_for_refresh = False
+        if not refresh:
+            check_for_refresh = self._check_for_refresh_of_data(kalender_list)
+
+        if check_for_refresh:
+            kalender_list = await self.get_calendar_list(refresh=True)
+
+        self._hass.data[DOMAIN]["calendar_list"] = kalender_list
+        
+        return kalender_list
 
     def format_date(self, date):
         if self._date_format == "None":
