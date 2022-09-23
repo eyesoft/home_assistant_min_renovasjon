@@ -23,14 +23,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     min_renovasjon = hass.data[DOMAIN]["data"]
-    calendar_list = await min_renovasjon._get_calendar_list()
+    calendar_list = await min_renovasjon.get_calendar_list()
     fraction_ids = config.get(CONF_FRACTION_ID)
 
     add_entities(MinRenovasjonSensor(min_renovasjon, fraction_id, calendar_list) for fraction_id in fraction_ids)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     min_renovasjon = hass.data[DOMAIN]["data"]
-    calendar_list = await min_renovasjon._get_calendar_list()
+    calendar_list = await min_renovasjon.get_calendar_list()
     entities = []
     fraction_ids = config_entry.options.get(CONF_FRACTION_IDS, [])
     
@@ -95,7 +95,6 @@ class MinRenovasjonSensor(Entity):
 
     async def async_update(self):
         """Update calendar."""
-        
         fraction = await self._min_renovasjon.get_calender_for_fraction(self._fraction_id)
 
         if fraction is not None:
