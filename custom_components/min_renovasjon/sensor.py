@@ -49,7 +49,6 @@ class MinRenovasjonSensor(Entity):
         self._fraction_id = int(fraction_id)
         self._available = True
         self._attributes = {}
-        self._attr_unique_id = self.get_name()
         
     @property
     def should_poll(self):
@@ -79,14 +78,16 @@ class MinRenovasjonSensor(Entity):
     @property
     def name(self):
         """Return the name."""
-        return self.get_name()
-
-    def get_name(self):
         if self._calendar_list is not None:
             for fraction in self._calendar_list:
                 if int(fraction[0]) == self._fraction_id:
                     return fraction[1]
         return None
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique ID."""
+        return "{0}_{1}".format(DOMAIN, self._fraction_id)
 
     @property
     def state(self):
