@@ -38,13 +38,14 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
+
 async def async_setup(hass: HomeAssistant, config: dict):
     if DOMAIN not in config:
         return True
-        
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["calendar_list"] = None
-    
+
     street_name = config[DOMAIN][CONF_STREET_NAME]
     street_code = config[DOMAIN][CONF_STREET_CODE]
     house_no = config[DOMAIN][CONF_HOUSE_NO]
@@ -56,8 +57,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
     return True
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
 
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["calendar_list"] = None
     street_name = config_entry.data.get(CONF_STREET_NAME, "")
@@ -65,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     house_no = config_entry.data.get(CONF_HOUSE_NO, "")
     county_id = config_entry.data.get(CONF_COUNTY_ID, "")
     date_format = config_entry.options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
-    
+
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
     hass.data[DOMAIN]["data"] = min_renovasjon
@@ -73,8 +74,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     return True
 
+
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     return True
+
 
 class MinRenovasjon:
     def __init__(self, hass, gatenavn, gatekode, husnr, kommunenr, date_format):
@@ -94,7 +97,7 @@ class MinRenovasjon:
 
     async def _get_tommekalender_from_web_api(self):
         _LOGGER.debug("_get_tommekalender_from_web_api")
-    
+
         header = {CONST_KOMMUNE_NUMMER: self._kommunenr, CONST_APP_KEY: CONST_APP_KEY_VALUE}
         url = CONST_URL_TOMMEKALENDER
         url = url.replace('[gatenavn]', self.gatenavn)
@@ -113,7 +116,7 @@ class MinRenovasjon:
 
     async def _get_fraksjoner_from_web_api(self):
         _LOGGER.debug("_get_fraksjoner_from_web_api")
-    
+
         header = {CONST_KOMMUNE_NUMMER: self._kommunenr, CONST_APP_KEY: CONST_APP_KEY_VALUE}
         url = CONST_URL_FRAKSJONER
 
@@ -177,8 +180,9 @@ class MinRenovasjon:
         for entry in kalender_list:
             _, _, _, tommedato_forste, tommedato_neste = entry
 
-            if tommedato_forste is None or tommedato_neste is None or tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
-                _LOGGER.debug("Data needs refresh")
+            if tommedato_forste is None or tommedato_forste.date() < date.today() or (
+                    tommedato_neste is not None and tommedato_neste.date() < date.today()):
+                _LOGGER.debug("Data needs refresh 1")
                 return True
 
         return False
@@ -197,8 +201,9 @@ class MinRenovasjon:
             if entry is not None:
                 entry_fraksjon_id, _, _, tommedato_forste, tommedato_neste = entry
                 if int(fraksjon_id) == int(entry_fraksjon_id):
-                    if tommedato_forste is None or tommedato_neste is None or tommedato_forste.date() < date.today() or tommedato_neste.date() < date.today():
-                        _LOGGER.debug("Data needs refresh")
+                    if tommedato_forste is None or tommedato_forste.date() < date.today() or (
+                            tommedato_neste is not None and tommedato_neste.date() < date.today()):
+                        _LOGGER.debug("Data needs refresh 2")
                         self._hass.data[DOMAIN]["calendar_list"] = None
                         entry = await self.get_calender_for_fraction(fraksjon_id)
                     return entry
@@ -206,7 +211,7 @@ class MinRenovasjon:
 
     async def get_calendar_list(self, refresh=False):
         data = self._hass.data[DOMAIN]["calendar_list"]
-        
+
         if refresh or data is None:
             tommekalender, fraksjoner = await self._get_from_web_api()
             kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
@@ -224,7 +229,7 @@ class MinRenovasjon:
             kalender_list = await self.get_calendar_list(refresh=True)
 
         self._hass.data[DOMAIN]["calendar_list"] = kalender_list
-        
+
         return kalender_list
 
     def format_date(self, date):
