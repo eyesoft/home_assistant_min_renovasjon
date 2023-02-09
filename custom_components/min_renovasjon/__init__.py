@@ -70,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
     hass.data[DOMAIN]["data"] = min_renovasjon
-    hass.config_entries.async_setup_platforms(config_entry, ["sensor"])
+    await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor"])
 
     return True
 
