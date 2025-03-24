@@ -69,12 +69,12 @@ class MinRenovasjonSensor(Entity):
         """Return entity specific state attributes."""
         path = "/local/min_renovasjon/"
         return "{0}{1}.png".format(path, self._fraction_id)
-      
+
     @property
     def extra_state_attributes(self):
         """Return entity specific state attributes."""
         return self._attributes
-          
+
     @property
     def name(self):
         """Return the name."""
@@ -112,6 +112,7 @@ class MinRenovasjonSensor(Entity):
                 self._attributes['fraction_id'] = self._fraction_id
                 self._attributes['fraction_name'] = fraction[1]
                 self._attributes['fraction_icon'] = fraction[2]
-               
+                self._attributes['pickup_days'] = fraction[5]
+
     async def async_added_to_hass(self):
         await self.async_update()

@@ -7,6 +7,7 @@ import logging
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
+from dateutil.relativedelta import relativedelta
 from datetime import date
 from datetime import datetime
 from homeassistant.config_entries import ConfigEntry
@@ -23,7 +24,8 @@ from .const import (
     CONST_APP_KEY,
     CONST_URL_FRAKSJONER,
     CONST_URL_TOMMEKALENDER,
-    CONST_APP_KEY_VALUE
+    CONST_APP_KEY_VALUE,
+    NUM_MONTHS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,7 +39,6 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(CONF_DATE_FORMAT, default=DEFAULT_DATE_FORMAT): cv.string,
     })
 }, extra=vol.ALLOW_EXTRA)
-
 
 async def async_setup(hass: HomeAssistant, config: dict):
     if DOMAIN not in config:
@@ -57,7 +58,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
     return True
 
-
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN]["calendar_list"] = None
@@ -70,14 +70,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
     hass.data[DOMAIN]["data"] = min_renovasjon
-    await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor"])
-
+    await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor", "calendar"])
     return True
-
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     return True
-
 
 class MinRenovasjon:
     def __init__(self, hass, gatenavn, gatekode, husnr, kommunenr, date_format):
@@ -103,6 +100,12 @@ class MinRenovasjon:
         url = url.replace('[gatenavn]', self.gatenavn)
         url = url.replace('[gatekode]', self.gatekode)
         url = url.replace('[husnr]', self.husnr)
+
+        fra_dato = date.today()
+        url = url.replace('[fra_dato]', fra_dato.strftime("%Y-%m-%d"))
+
+        til_dato = fra_dato + relativedelta(months=NUM_MONTHS)
+        url = url.replace('[til_dato]', til_dato.strftime("%Y-%m-%d"))
 
         async with aiohttp.ClientSession(headers=header) as session:
             async with session.get(url) as resp:
@@ -150,11 +153,15 @@ class MinRenovasjon:
             fraksjon_id = calender_entry['FraksjonId']
             tommedato_forste = None
             tommedato_neste = None
+            tommedato_alle = None
 
             if len(calender_entry['Tommedatoer']) == 1:
                 tommedato_forste = calender_entry['Tommedatoer'][0]
             else:
-                tommedato_forste, tommedato_neste = calender_entry['Tommedatoer']
+                tommedato_forste = calender_entry['Tommedatoer'][0]
+                tommedato_neste = calender_entry['Tommedatoer'][1]
+
+            tommedato_alle = calender_entry['Tommedatoer']
 
             if tommedato_forste is not None:
                 tommedato_forste = datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S")
@@ -166,7 +173,12 @@ class MinRenovasjon:
                     fraksjon_navn = fraksjon['Navn']
                     fraksjon_ikon = fraksjon['Ikon']
 
-                    kalender_list.append((fraksjon_id, fraksjon_navn, fraksjon_ikon, tommedato_forste, tommedato_neste))
+                    kalender_list.append((fraksjon_id, 
+                                            fraksjon_navn, 
+                                            fraksjon_ikon, 
+                                            tommedato_forste, 
+                                            tommedato_neste,
+                                            tommedato_alle))
                     continue
 
         return kalender_list
@@ -178,7 +190,7 @@ class MinRenovasjon:
             return True
 
         for entry in kalender_list:
-            _, _, _, tommedato_forste, tommedato_neste = entry
+            _, _, _, tommedato_forste, tommedato_neste, _ = entry
 
             if tommedato_forste is None or tommedato_forste.date() < date.today() or (
                     tommedato_neste is not None and tommedato_neste.date() < date.today()):
@@ -199,7 +211,7 @@ class MinRenovasjon:
 
         for entry in calendar_list:
             if entry is not None:
-                entry_fraksjon_id, _, _, tommedato_forste, tommedato_neste = entry
+                entry_fraksjon_id, _, _, tommedato_forste, tommedato_neste, _ = entry
                 if int(fraksjon_id) == int(entry_fraksjon_id):
                     if tommedato_forste is None or tommedato_forste.date() < date.today() or (
                             tommedato_neste is not None and tommedato_neste.date() < date.today()):
