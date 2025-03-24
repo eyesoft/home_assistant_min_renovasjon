@@ -171,7 +171,11 @@ class MinRenovasjon:
             for fraksjon in fraksjoner_json:
                 if int(fraksjon['Id']) == int(fraksjon_id):
                     fraksjon_navn = fraksjon['Navn']
-                    fraksjon_ikon = fraksjon['Ikon']
+
+                    fraksjon_ikon = fraksjon['NorkartStandardFraksjonIkon']
+                    if fraksjon_ikon is None:
+                        fraksjon_ikon = fraksjon['Ikon']
+                        fraksjon_ikon = fraksjon_ikon.replace("http:", "https:")                    
 
                     kalender_list.append((fraksjon_id, 
                                             fraksjon_navn, 
