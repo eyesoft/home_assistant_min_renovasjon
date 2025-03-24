@@ -4,15 +4,20 @@ import json
 
 from collections import namedtuple
 from typing import Dict, List, Tuple
+
 import requests
 import re
-
 import logging
 import voluptuous as vol
 
 from homeassistant import config_entries, exceptions
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
+
+from dateutil.relativedelta import relativedelta
+from datetime import date
+from datetime import datetime
+
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
@@ -31,7 +36,8 @@ from .const import (
     CONST_URL_FRAKSJONER,
     CONST_URL_TOMMEKALENDER,
     CONST_KOMMUNE_NUMMER,
-    CONST_APP_KEY
+    CONST_APP_KEY,
+    NUM_MONTHS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,7 +72,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
 
             data_schema=vol.Schema({
-            	vol.Required("address", default=address): str
+                vol.Required("address", default=address): str
             }),
             errors=errors
         )
@@ -87,12 +93,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.postal_code,
                 self.postal,
             ) = address_info
-       
+
         if await self.municipality_is_app_customer:
             text = "self.fractions = self._get_fractions()"
         else:
             return "municipality_not_customer", None
-       
+
         address = {
             "street_name": self.street,
             "street_code": str(self.street_code),
@@ -129,7 +135,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             "adresser.postnummer,"
             "adresser.poststed",
         }
-           
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url=ADDRESS_LOOKUP_URL, params=params) as resp:
                 response = await resp.read()
@@ -161,7 +167,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         :return: Boolean indicating if this municipality is a customer or not.
         """
         customers = None
-       
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url=APP_CUSTOMERS_URL, params={"Appid": "MobilOS-NorkartRenovasjon"}) as resp:
                 response = await resp.read()
@@ -176,15 +182,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get options flow."""
-        return OptionsFlowHandler(config_entry)
+        return OptionsFlowHandler()
         
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Options flow handler."""
 
-    def __init__(self, config_entry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
+    @property
+    def config_entry(self):
+        return self.hass.config_entries.async_get_entry(self.handler)
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
@@ -193,8 +198,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if "date_format" not in user_input:
                 user_input["date_format"] = "None"
 
-            self.options.update(user_input)
-            return self.async_create_entry(title=DOMAIN, data=self.options)
+            return self.async_create_entry(title=DOMAIN, data=user_input)
 
         options = self.config_entry.options
         fraction_ids = options.get(CONF_FRACTION_IDS, [])
@@ -246,6 +250,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         url = url.replace('[gatenavn]', street_name)
         url = url.replace('[gatekode]', street_code)
         url = url.replace('[husnr]', house_no)
+
+        fra_dato = date.today()
+        url = url.replace('[fra_dato]', fra_dato.strftime("%Y-%m-%d"))
+
+        til_dato = fra_dato + relativedelta(months=NUM_MONTHS)
+        url = url.replace('[til_dato]', til_dato.strftime("%Y-%m-%d"))
 
         async with aiohttp.ClientSession(headers=header) as session:
             async with session.get(url) as resp:
