@@ -18,6 +18,9 @@
       "municipality_not_customer": "Valgt kommune er ikke en kunde av Min Renovasjon!",
       "no_address_found": "Ingen adresse funnet.",
       "multiple_addresses_found": "Mer enn en adresse funnet. Vennligst begrens søket."
+    },
+    "abort": {
+        "single_instance_allowed": "Denne integrasjonen kan kun konfigureres én gang."
     }
   },
   "options": {
