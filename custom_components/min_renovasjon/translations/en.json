@@ -18,6 +18,9 @@
       "municipality_not_customer": "Selected municipality is not a customer of Min Renovasjon!",
       "no_address_found": "No address found.",
       "multiple_addresses_found": "More than one addresses found. Only one address should be returned. Please narrow your search."
+    },
+    "abort": {
+        "single_instance_allowed": "Only a single instance is allowed."
     }
   },
   "options": {
