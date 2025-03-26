@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Min Renovasjon adresseinformasjon",
-        "description": "Tast inn din adresse.",
+        "description": "Tast inn din adresse som 'gateadresse, postnummer'.",
         "data": {
           "street_name": "Gatenavn",
           "street_code": "Gatekode",
@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "title": "Min Renovasjon avfallstyper",
-        "description": "Velg de avfallstypene det skal lages sensor av.",
+        "description": "Velg de avfallstypene det skal lages sensor for. Home Assistant må deretter startes på nytt.",
         "data": {
           "fraction_ids": "Avfallstyper",
           "date_format": "Datoformatering"

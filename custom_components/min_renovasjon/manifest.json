@@ -1,6 +1,6 @@
 {
   "domain": "min_renovasjon",
-  "name": "Min renovasjon",
+  "name": "Min Renovasjon",
   "config_flow": true,
   "documentation": "https://github.com/eyesoft/home_assistant_min_renovasjon",
   "issue_tracker": "https://github.com/eyesoft/home_assistant_min_renovasjon/issues",
@@ -10,6 +10,6 @@
   "ssdp": [],
   "zeroconf": [],
   "homekit": {},
-  "version": "2.4.0",
+  "version": "2.6.0",
   "iot_class": "cloud_polling"
 }

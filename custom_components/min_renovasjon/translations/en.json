@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Min Renovasjon address information",
-        "description": "Enter your address information.",
+        "description": "Enter your address information as 'street address, zip code'.",
         "data": {
           "street_name": "Street name",
           "street_code": "Street code",
@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "title": "Min Renovasjon fractions",
-        "description": "Select fractions from which sensors are to be made.",
+        "description": "Select fractions from which sensors are to be made. Home Assistant needs to be restartet when done.",
         "data": {
           "fraction_ids": "Fractions",
           "date_format": "Date formatting"

@@ -1,24 +1,16 @@
 import aiohttp
-import asyncio
-import json
-
-from collections import namedtuple
-from typing import Dict, List, Tuple
-
-import requests
 import re
 import logging
 import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
 
+from typing import Dict, List, Tuple
 from homeassistant import config_entries, exceptions
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
-
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from dateutil.relativedelta import relativedelta
-from datetime import date
-from datetime import datetime
-
-import homeassistant.helpers.config_validation as cv
+from .api import ApiClient, ApiException
 
 from .const import (
     DOMAIN,
@@ -28,46 +20,40 @@ from .const import (
     CONF_COUNTY_ID,
     CONF_DATE_FORMAT,
     DEFAULT_DATE_FORMAT,
-    CONF_FRACTION_IDS,
-    ADDRESS_LOOKUP_URL,
-    APP_CUSTOMERS_URL,
-    CONST_APP_KEY_VALUE,
-    KOMTEK_API_BASE_URL,
-    CONST_URL_FRAKSJONER,
-    CONST_URL_TOMMEKALENDER,
-    CONST_KOMMUNE_NUMMER,
-    CONST_APP_KEY,
-    NUM_MONTHS
+    CONF_FRACTION_IDS
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
+class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
-    
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
         address = None
-        
+
+        if self._async_current_entries():
+            return self.async_abort(reason="single_instance_allowed")
+
         if user_input is not None:
             try:
                 address = user_input["address"]
-                error, address_info = await self._get_address_info(address)
-                
+                error, address_info, title = await self._get_address_info(address)
+
                 if error is not None:
                     errors["base"] = error
-                
+
                 if address_info is not None:
-                    return self.async_create_entry(title="Min Renovasjon", data=address_info)
-                    
+                    return self.async_create_entry(title=title, data=address_info)
+
             except Exception:
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
 
-        #errors substitution in language file
+        # errors substitution in language file
         return self.async_show_form(
             step_id="user",
 
@@ -78,10 +64,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _get_address_info(self, address_search_string):
-        error, address_info = await self._address_lookup(address_search_string)
+        error, address_info = await self._async_address_lookup(address_search_string)
 
         if error is not None:
-            return error, None
+            return error, None, None
 
         if address_info is not None:
             (
@@ -97,18 +83,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if await self.municipality_is_app_customer:
             text = "self.fractions = self._get_fractions()"
         else:
-            return "municipality_not_customer", None
+            return "municipality_not_customer", None, None
 
         address = {
             "street_name": self.street,
             "street_code": str(self.street_code),
             "house_no": str(self.number),
             "county_id": str(self.municipality_code)
-        }        
-        
-        return None, address
+        }
 
-    async def _address_lookup(self, s: str) -> Tuple:
+        title = f"{self.street} {self.number}, {self.postal_code} {self.postal}"
+
+        return None, address, title
+
+    async def _async_address_lookup(self, s: str) -> Tuple:
         """
         Makes an API call to geonorge.no, the official resource for open geo data in Norway.
         This function is used to get deterministic address properties that is needed for
@@ -124,24 +112,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         subst = "\\1*\\3"
         search_string = re.sub(regex, subst, s, 0, re.MULTILINE)
 
-        params={
-            "sok": search_string,
-            # Only get the relevant address fields
-            "filtrer": "adresser.kommunenummer,"
-            "adresser.adressenavn,"
-            "adresser.adressekode,"
-            "adresser.nummer,"
-            "adresser.kommunenavn,"
-            "adresser.postnummer,"
-            "adresser.poststed",
-        }
+        session = async_get_clientsession(self.hass)
+        client = ApiClient(session)
+        data = await client.async_address_lookup(search_string)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url=ADDRESS_LOOKUP_URL, params=params) as resp:
-                response = await resp.read()
-                if resp.ok:
-                    data = json.loads(response.decode("UTF-8"))
-        
+        if data is None:
+            return "no_address_found", None
+
         if not data["adresser"]:
             return "no_address_found", None
 
@@ -166,25 +143,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         a customer or not.
         :return: Boolean indicating if this municipality is a customer or not.
         """
-        customers = None
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url=APP_CUSTOMERS_URL, params={"Appid": "MobilOS-NorkartRenovasjon"}) as resp:
-                response = await resp.read()
-                if resp.ok:
-                    customers = json.loads(response.decode("UTF-8"))
-        
-        return any(
-            customer["Number"] == self.municipality_code for customer in customers
-        )
+        session = async_get_clientsession(self.hass)
+        client = ApiClient(session)
+        return await client.async_municipality_is_app_customer(self.municipality_code)
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
         """Get options flow."""
-        return OptionsFlowHandler()
-        
-class OptionsFlowHandler(config_entries.OptionsFlow):
+        return MinRenovasjonFlowHandler()
+
+
+class MinRenovasjonFlowHandler(config_entries.OptionsFlow):
     """Options flow handler."""
 
     @property
@@ -203,16 +173,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         options = self.config_entry.options
         fraction_ids = options.get(CONF_FRACTION_IDS, [])
         date_format = options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
-        
+
         municipality_code = self.config_entry.data.get(CONF_COUNTY_ID, "")
         street_name = self.config_entry.data.get(CONF_STREET_NAME, "")
         street_code = self.config_entry.data.get(CONF_STREET_CODE, "")
         house_no = self.config_entry.data.get(CONF_HOUSE_NO, "")
-        
+
         fraction_list = await self._get_fractions(municipality_code)
         calendar = await self._get_calendar(municipality_code, street_name, street_code, house_no)
         fractions = {}
-        
+
         for fraction in fraction_list:
             if calendar is not None:
                 if [item for item in calendar if item["FraksjonId"] == fraction["Id"]]:
@@ -230,39 +200,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
         )
 
-    async def _get_fractions(self, municipality_code) -> Dict:
-        headers = {"RenovasjonAppKey": CONST_APP_KEY_VALUE, "Kommunenr": municipality_code}
-        params = {"server": CONST_URL_FRAKSJONER}
-        
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(url=KOMTEK_API_BASE_URL, params=params) as resp:
-                response = await resp.read()
-                if resp.ok:
-                    return json.loads(response.decode("UTF-8"))
-                else:
-                    _LOGGER.error("_get_fractions returned: %s", resp)
-                    return None
-        return None
+    async def _get_fractions(self, kommune_nummer) -> Dict:
+        session = async_get_clientsession(self.hass)
+        client = ApiClient(session)
+        return await client.async_get_fraksjoner(kommune_nummer)
 
     async def _get_calendar(self, municipality_code, street_name, street_code, house_no) -> Dict:
-        header = {CONST_KOMMUNE_NUMMER: municipality_code, CONST_APP_KEY: CONST_APP_KEY_VALUE}
-        url = CONST_URL_TOMMEKALENDER
-        url = url.replace('[gatenavn]', street_name)
-        url = url.replace('[gatekode]', street_code)
-        url = url.replace('[husnr]', house_no)
-
-        fra_dato = date.today()
-        url = url.replace('[fra_dato]', fra_dato.strftime("%Y-%m-%d"))
-
-        til_dato = fra_dato + relativedelta(months=NUM_MONTHS)
-        url = url.replace('[til_dato]', til_dato.strftime("%Y-%m-%d"))
-
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url) as resp:
-                response = await resp.read()
-                if resp.ok:
-                    return json.loads(response.decode("UTF-8"))
-                else:
-                    _LOGGER.error("_get_calendar returned: %s", resp)
-                    return None
-        return None
+        session = async_get_clientsession(self.hass)
+        client = ApiClient(session)
+        return await client.async_get_tommekalender(municipality_code,
+                                                    street_name,
+                                                    street_code,
+                                                    house_no)

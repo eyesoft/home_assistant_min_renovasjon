@@ -1,9 +1,8 @@
 import logging
-import json
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
-from homeassistant.helpers.restore_state import RestoreEntity 
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 from homeassistant.helpers.entity import Entity
 from datetime import date
@@ -21,23 +20,27 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_FRACTION_ID): vol.All(cv.ensure_list),
 })
 
+
 async def async_setup_platform(hass, config, add_entities, discovery_info=None):
     min_renovasjon = hass.data[DOMAIN]["data"]
-    calendar_list = await min_renovasjon.get_calendar_list()
+    calendar_list = await min_renovasjon.async_get_calendar_list()
     fraction_ids = config.get(CONF_FRACTION_ID)
 
     add_entities(MinRenovasjonSensor(min_renovasjon, fraction_id, calendar_list) for fraction_id in fraction_ids)
 
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     min_renovasjon = hass.data[DOMAIN]["data"]
-    calendar_list = await min_renovasjon.get_calendar_list()
+    calendar_list = await min_renovasjon.async_get_calendar_list()
+
     entities = []
     fraction_ids = config_entry.options.get(CONF_FRACTION_IDS, [])
-    
+
     for fraction_id in fraction_ids:
         entities.append(MinRenovasjonSensor(min_renovasjon, fraction_id, calendar_list))
-        
+
     async_add_entities(entities)
+
 
 class MinRenovasjonSensor(Entity):
 
@@ -49,7 +52,7 @@ class MinRenovasjonSensor(Entity):
         self._fraction_id = int(fraction_id)
         self._available = True
         self._attributes = {}
-        
+
     @property
     def should_poll(self):
         return True
@@ -67,8 +70,11 @@ class MinRenovasjonSensor(Entity):
     @property
     def entity_picture(self):
         """Return entity specific state attributes."""
-        path = "/local/min_renovasjon/"
-        return "{0}{1}.png".format(path, self._fraction_id)
+        if self._calendar_list is not None:
+            for fraction in self._calendar_list:
+                if int(fraction[0]) == self._fraction_id:
+                    return fraction[2]
+        return None
 
     @property
     def extra_state_attributes(self):
@@ -96,7 +102,7 @@ class MinRenovasjonSensor(Entity):
 
     async def async_update(self):
         """Update calendar."""
-        fraction = await self._min_renovasjon.get_calender_for_fraction(self._fraction_id)
+        fraction = await self._min_renovasjon.async_get_calender_for_fraction(self._fraction_id)
 
         if fraction is not None:
             if fraction[3] is not None:
@@ -104,7 +110,7 @@ class MinRenovasjonSensor(Entity):
                 today = date.today()
                 diff = pickupDate - today
                 self._state = fraction[3]
-                
+
                 self._attributes['days_to_pickup'] = diff.days
                 self._attributes['formatted_date'] = self._min_renovasjon.format_date(self._state)
                 self._attributes['raw_date'] = self._state

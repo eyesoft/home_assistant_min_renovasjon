@@ -1,6 +1,6 @@
 {
     "name": "Min renovasjon",
     "render_readme": true,
-    "domains": ["sensor"],
+    "domains": ["sensor", "calendar"],
     "country": ["NO"]
 }

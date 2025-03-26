@@ -1,17 +1,13 @@
-import aiohttp
-import asyncio
 import urllib.parse
-import requests
-import json
 import logging
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
 from dateutil.relativedelta import relativedelta
-from datetime import date
-from datetime import datetime
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from .data import DataClient
+
 from .const import (
     DOMAIN,
     CONF_STREET_NAME,
@@ -20,12 +16,7 @@ from .const import (
     CONF_COUNTY_ID,
     CONF_DATE_FORMAT,
     DEFAULT_DATE_FORMAT,
-    CONST_KOMMUNE_NUMMER,
-    CONST_APP_KEY,
-    CONST_URL_FRAKSJONER,
-    CONST_URL_TOMMEKALENDER,
-    CONST_APP_KEY_VALUE,
-    NUM_MONTHS
+    STARTUP_MESSAGE
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +31,7 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
+
 async def async_setup(hass: HomeAssistant, config: dict):
     if DOMAIN not in config:
         return True
@@ -52,14 +44,17 @@ async def async_setup(hass: HomeAssistant, config: dict):
     house_no = config[DOMAIN][CONF_HOUSE_NO]
     county_id = config[DOMAIN][CONF_COUNTY_ID]
     date_format = config[DOMAIN][CONF_DATE_FORMAT]
-    min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
 
+    min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
     hass.data[DOMAIN]["data"] = min_renovasjon
 
     return True
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
-    hass.data.setdefault(DOMAIN, {})
+    if hass.data.get(DOMAIN) is None:
+        hass.data.setdefault(DOMAIN, {})
+        _LOGGER.info(STARTUP_MESSAGE)
+
     hass.data[DOMAIN]["calendar_list"] = None
     street_name = config_entry.data.get(CONF_STREET_NAME, "")
     street_code = config_entry.data.get(CONF_STREET_CODE, "")
@@ -68,22 +63,56 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     date_format = config_entry.options.get(CONF_DATE_FORMAT, DEFAULT_DATE_FORMAT)
 
     min_renovasjon = MinRenovasjon(hass, street_name, street_code, house_no, county_id, date_format)
-
     hass.data[DOMAIN]["data"] = min_renovasjon
+
     await hass.config_entries.async_forward_entry_setups(config_entry, ["sensor", "calendar"])
     return True
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     return True
 
+
 class MinRenovasjon:
     def __init__(self, hass, gatenavn, gatekode, husnr, kommunenr, date_format):
         self._hass = hass
-        self.gatenavn = self._url_encode(gatenavn)
-        self.gatekode = gatekode
-        self.husnr = husnr
+        self._gatenavn = self._url_encode(gatenavn)
+        self._gatekode = gatekode
+        self._husnr = husnr
         self._kommunenr = kommunenr
         self._date_format = date_format
+        self._data_client = DataClient(hass)
+
+    # Fetches the calender for the specified fractionId
+    async def async_get_calender_for_fraction(self, fraction_id):
+        calendar_list = await self._async_get_calendar()
+
+        if calendar_list is None:
+            return None
+
+        for entry in calendar_list:
+            if entry is not None:
+                entry_fraction_id, _, _, tommedato_forste, tommedato_neste, _ = entry
+                if int(fraction_id) == int(entry_fraction_id):
+                    return entry
+
+        return None
+
+    # Fetches the calendar for all fractions
+    async def async_get_calendar_list(self):
+        return await self._async_get_calendar()
+
+    async def _async_get_calendar(self):
+        return await self._data_client.async_get_calendar(
+            self._kommunenr,
+            self._gatenavn,
+            self._gatekode,
+            self._husnr
+        )
+
+    def format_date(self, date):
+        if self._date_format == "None":
+            return date
+        return date.strftime(self._date_format)
 
     @staticmethod
     def _url_encode(string):
@@ -91,164 +120,3 @@ class MinRenovasjon:
         if string_decoded_encoded != string:
             string = string_decoded_encoded
         return string
-
-    async def _get_tommekalender_from_web_api(self):
-        _LOGGER.debug("_get_tommekalender_from_web_api")
-
-        header = {CONST_KOMMUNE_NUMMER: self._kommunenr, CONST_APP_KEY: CONST_APP_KEY_VALUE}
-        url = CONST_URL_TOMMEKALENDER
-        url = url.replace('[gatenavn]', self.gatenavn)
-        url = url.replace('[gatekode]', self.gatekode)
-        url = url.replace('[husnr]', self.husnr)
-
-        fra_dato = date.today()
-        url = url.replace('[fra_dato]', fra_dato.strftime("%Y-%m-%d"))
-
-        til_dato = fra_dato + relativedelta(months=NUM_MONTHS)
-        url = url.replace('[til_dato]', til_dato.strftime("%Y-%m-%d"))
-
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url) as resp:
-                data = await resp.read()
-
-                if resp.ok:
-                    return data.decode("UTF-8")
-                else:
-                    _LOGGER.error("GET Tommekalender returned: %s", resp)
-                    return None
-
-    async def _get_fraksjoner_from_web_api(self):
-        _LOGGER.debug("_get_fraksjoner_from_web_api")
-
-        header = {CONST_KOMMUNE_NUMMER: self._kommunenr, CONST_APP_KEY: CONST_APP_KEY_VALUE}
-        url = CONST_URL_FRAKSJONER
-
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url) as resp:
-                data = await resp.read()
-
-                if resp.ok:
-                    return data.decode("UTF-8")
-                else:
-                    _LOGGER.error("GET Fraksjoner returned: %s", resp)
-                    return None
-
-    async def _get_from_web_api(self):
-        tommekalender = await self._get_tommekalender_from_web_api()
-        fraksjoner = await self._get_fraksjoner_from_web_api()
-        return tommekalender, fraksjoner
-
-    @staticmethod
-    def _parse_calendar_list(tommekalender, fraksjoner):
-        kalender_list = []
-
-        if tommekalender is None or fraksjoner is None:
-            _LOGGER.error("Could not fetch calendar. Check configuration parameters.")
-            return None
-
-        tommekalender_json = json.loads(tommekalender)
-        fraksjoner_json = json.loads(fraksjoner)
-
-        for calender_entry in tommekalender_json:
-            fraksjon_id = calender_entry['FraksjonId']
-            tommedato_forste = None
-            tommedato_neste = None
-            tommedato_alle = None
-
-            if len(calender_entry['Tommedatoer']) == 1:
-                tommedato_forste = calender_entry['Tommedatoer'][0]
-            else:
-                tommedato_forste = calender_entry['Tommedatoer'][0]
-                tommedato_neste = calender_entry['Tommedatoer'][1]
-
-            tommedato_alle = calender_entry['Tommedatoer']
-
-            if tommedato_forste is not None:
-                tommedato_forste = datetime.strptime(tommedato_forste, "%Y-%m-%dT%H:%M:%S")
-            if tommedato_neste is not None:
-                tommedato_neste = datetime.strptime(tommedato_neste, "%Y-%m-%dT%H:%M:%S")
-
-            for fraksjon in fraksjoner_json:
-                if int(fraksjon['Id']) == int(fraksjon_id):
-                    fraksjon_navn = fraksjon['Navn']
-
-                    fraksjon_ikon = fraksjon['NorkartStandardFraksjonIkon']
-                    if fraksjon_ikon is None:
-                        fraksjon_ikon = fraksjon['Ikon']
-                        fraksjon_ikon = fraksjon_ikon.replace("http:", "https:")                    
-
-                    kalender_list.append((fraksjon_id, 
-                                            fraksjon_navn, 
-                                            fraksjon_ikon, 
-                                            tommedato_forste, 
-                                            tommedato_neste,
-                                            tommedato_alle))
-                    continue
-
-        return kalender_list
-
-    @staticmethod
-    def _check_for_refresh_of_data(kalender_list):
-        if kalender_list is None:
-            _LOGGER.debug("Calendar is empty, forcing refresh")
-            return True
-
-        for entry in kalender_list:
-            _, _, _, tommedato_forste, tommedato_neste, _ = entry
-
-            if tommedato_forste is None or tommedato_forste.date() < date.today() or (
-                    tommedato_neste is not None and tommedato_neste.date() < date.today()):
-                _LOGGER.debug("Data needs refresh 1")
-                return True
-
-        return False
-
-    @property
-    def calender_list(self):
-        return self._hass.data[DOMAIN]["calendar_list"]
-
-    async def get_calender_for_fraction(self, fraksjon_id):
-        calendar_list = self._hass.data[DOMAIN]["calendar_list"]
-        if calendar_list is None:
-            calendar_list = await self.get_calendar_list()
-            self._hass.data[DOMAIN]["calendar_list"] = calendar_list
-
-        for entry in calendar_list:
-            if entry is not None:
-                entry_fraksjon_id, _, _, tommedato_forste, tommedato_neste, _ = entry
-                if int(fraksjon_id) == int(entry_fraksjon_id):
-                    if tommedato_forste is None or tommedato_forste.date() < date.today() or (
-                            tommedato_neste is not None and tommedato_neste.date() < date.today()):
-                        _LOGGER.debug("Data needs refresh 2")
-                        self._hass.data[DOMAIN]["calendar_list"] = None
-                        entry = await self.get_calender_for_fraction(fraksjon_id)
-                    return entry
-        return None
-
-    async def get_calendar_list(self, refresh=False):
-        data = self._hass.data[DOMAIN]["calendar_list"]
-
-        if refresh or data is None:
-            tommekalender, fraksjoner = await self._get_from_web_api()
-            kalender_list = self._parse_calendar_list(tommekalender, fraksjoner)
-        else:
-            kalender_list = data
-
-        if kalender_list is None:
-            return None
-
-        check_for_refresh = False
-        if not refresh:
-            check_for_refresh = self._check_for_refresh_of_data(kalender_list)
-
-        if check_for_refresh:
-            kalender_list = await self.get_calendar_list(refresh=True)
-
-        self._hass.data[DOMAIN]["calendar_list"] = kalender_list
-
-        return kalender_list
-
-    def format_date(self, date):
-        if self._date_format == "None":
-            return date
-        return date.strftime(self._date_format)

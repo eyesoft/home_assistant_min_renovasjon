@@ -1,34 +1,28 @@
 import logging
-import json
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import callback
 from homeassistant.util.dt import parse_datetime, as_utc, now
-from datetime import date
 from datetime import datetime
-from .const import (
-    DOMAIN,
-    CONF_FRACTION_ID
-)
+from .const import (DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(hass, config_entry, async_add_entities):
     min_renovasjon = hass.data[DOMAIN]["data"]
-    calendar_list = await min_renovasjon.get_calendar_list()
-    async_add_entities([MinRenovasjonCalendarEntity("Min Renovasjon Calendar", config_entry, min_renovasjon, calendar_list)])
+    async_add_entities([MinRenovasjonCalendarEntity("Min Renovasjon Calendar", config_entry, min_renovasjon)])
+
 
 class MinRenovasjonCalendarEntity(CalendarEntity):
     """Representation of a MinRenovasjon Calendar Entity."""
 
-    def __init__(self, calendar_name, config_entry, min_renovasjon, calendar_list):
+    def __init__(self, calendar_name, config_entry, min_renovasjon):
         """Initialize the calendar entity."""
         self._calendar_name = calendar_name
         self._config_entry = config_entry
-        self._events = []
-
-        self._calendar_list = calendar_list
         self._min_renovasjon = min_renovasjon
+        self._events = []
 
     @property
     def name(self):
@@ -39,7 +33,7 @@ class MinRenovasjonCalendarEntity(CalendarEntity):
     def event(self):
         """Return the next upcoming event."""
         return self._get_next_event()
-    
+
     @property
     def unique_id(self):
         """Return a unique ID to use for this entity."""
@@ -65,7 +59,7 @@ class MinRenovasjonCalendarEntity(CalendarEntity):
     async def _fetch_events(self):
         """Call Min Renovasjon to fetch delivery dates."""
         events = []
-        calendar_list = await self._min_renovasjon.get_calendar_list()
+        calendar_list = await self._min_renovasjon.async_get_calendar_list()
 
         for entry in calendar_list:
             if entry:
@@ -77,9 +71,9 @@ class MinRenovasjonCalendarEntity(CalendarEntity):
                         pickup_date_formatted = datetime.strptime(pickup_date, "%Y-%m-%dT%H:%M:%S")
 
                         events.append(CalendarEvent(
-                            summary = fraction_name,
-                            start = pickup_date_formatted.date(),
-                            end = pickup_date_formatted.date()
+                            summary=fraction_name,
+                            start=pickup_date_formatted.date(),
+                            end=pickup_date_formatted.date()
                         ))
 
         self._events = events
